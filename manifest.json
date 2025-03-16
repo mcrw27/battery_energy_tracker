@@ -1,0 +1,8 @@
+{
+  "domain": "battery_energy_tracker",
+  "name": "Battery Energy Tracker",
+  "documentation": "",
+  "dependencies": [],
+  "requirements": [],
+  "version": "0.1.0"
+}
