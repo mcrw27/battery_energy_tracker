@@ -34,6 +34,11 @@ class BatteryEnergyTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # Validate the input
             try:
+                # Since this is a singleton integration (only one instance allowed),
+                # check if it's already configured
+                await self.async_set_unique_id(DOMAIN)
+                self._abort_if_unique_id_configured()
+                
                 # Return the info to be stored in the config entry
                 return self.async_create_entry(
                     title="Battery Energy Tracker",
@@ -77,7 +82,8 @@ class BatteryEnergyTrackerOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize options flow."""
-        self.config_entry = config_entry
+        # Don't store the config_entry directly
+        self.entry_id = config_entry.entry_id
         self.options = dict(config_entry.options)
         self.data = dict(config_entry.data)
 
