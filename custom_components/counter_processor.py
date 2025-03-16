@@ -1,6 +1,6 @@
 """Counter processing for the Battery Energy Tracker integration."""
 import logging
-from ..const import MAX_COUNTER_VALUE, COUNTER_THRESHOLD
+from .const import MAX_COUNTER_VALUE, COUNTER_THRESHOLD
 
 _LOGGER = logging.getLogger(__name__)
 

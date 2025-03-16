@@ -43,7 +43,7 @@ from .const import (
     ATTR_CHARGE_DURATION,
     ATTR_ENERGY_SINCE_LAST_CHARGE,
 )
-from .coordinator import BatteryEnergyCoordinator
+from .coordinator_base import BatteryEnergyCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 

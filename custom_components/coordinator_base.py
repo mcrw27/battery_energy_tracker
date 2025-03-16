@@ -1,10 +1,4 @@
-"""Coordinator module for the Battery Energy Tracker integration."""
-# This file serves as the initialization for the coordinator package
-# It's intentionally minimal to avoid circular imports
-
-# We'll define the base class here and then attach methods from the modules
-# after they've been imported
-
+"""Base coordinator for the Battery Energy Tracker integration."""
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
@@ -13,7 +7,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from ..const import (
+from .const import (
     DOMAIN,
     MAX_COUNTER_VALUE,
     COUNTER_THRESHOLD,

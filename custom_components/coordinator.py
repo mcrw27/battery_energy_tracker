@@ -1,16 +1,16 @@
-"""Main coordinator for the Battery Energy Tracker integration."""
+"""Coordinator for the Battery Energy Tracker integration."""
 import logging
 
 # Import the main coordinator class
-from .coordinator import BatteryEnergyCoordinator
+from .coordinator_base import BatteryEnergyCoordinator
 
-# Import the various methods we'll attach to the coordinator
-from .coordinator import counter_processor, entity_detection, charge_state, diagnostics, services
+# Import methods to attach
+from . import charge_state, counter_processor, diagnostics, entity_detector, services
 
 _LOGGER = logging.getLogger(__name__)
 
-# Attach the methods to the BatteryEnergyCoordinator class
-BatteryEnergyCoordinator.auto_detect_entities = entity_detection.auto_detect_entities
+# Attach methods to the BatteryEnergyCoordinator class
+BatteryEnergyCoordinator.auto_detect_entities = entity_detector.auto_detect_entities
 BatteryEnergyCoordinator._update_counters = counter_processor._update_counters
 BatteryEnergyCoordinator._process_counter_value = counter_processor._process_counter_value
 BatteryEnergyCoordinator._update_charging_status = charge_state._update_charging_status
