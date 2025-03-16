@@ -44,6 +44,7 @@ from .const import (
     ATTR_ENERGY_SINCE_LAST_CHARGE,
 )
 from .coordinator_base import BatteryEnergyCoordinator
+from . import coordinator  
 
 _LOGGER = logging.getLogger(__name__)
 
