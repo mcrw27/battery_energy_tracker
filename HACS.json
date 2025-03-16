@@ -1,5 +1,8 @@
 {
     "name": "Battery Energy Tracker",
+    "content_in_root": false,
     "render_readme": true,
+    "domains": ["sensor"],
+    "country": ["ALL"],
     "homeassistant": "2023.6.0"
   }

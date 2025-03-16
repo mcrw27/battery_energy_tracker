@@ -1,9 +1,9 @@
 {
   "domain": "battery_energy_tracker",
   "name": "Battery Energy Tracker",
-  "documentation": "https://github.com/yourusername/battery_energy_tracker",
+  "documentation": "https://github.com/mcrw27/battery_energy_tracker",
   "dependencies": [],
-  "codeowners": ["@yourusername"],
+  "codeowners": ["@mcrw27"],
   "requirements": [],
   "iot_class": "local_polling",
   "version": "0.1.0"
