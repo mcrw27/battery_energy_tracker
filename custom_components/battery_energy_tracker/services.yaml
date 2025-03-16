@@ -1,0 +1,43 @@
+reset_counters:
+  name: Reset Counters
+  description: Reset all energy counters to zero.
+
+reset_energy_since_charge:
+  name: Reset Energy Since Charge
+  description: Reset only the energy since last charge counter.
+
+set_charge_state:
+  name: Set Charge State
+  description: Manually set the battery charging state.
+  fields:
+    is_charging:
+      name: Is Charging
+      description: Whether the battery is charging or not.
+      required: true
+      selector:
+        boolean:
+
+adjust_counters:
+  name: Adjust Counters
+  description: Adjust the energy counter values.
+  fields:
+    discharge_adjustment:
+      name: Discharge Adjustment
+      description: Value to add to the discharge counter.
+      required: false
+      selector:
+        number:
+          min: -10000
+          max: 10000
+          step: 1
+          mode: box
+    charge_adjustment:
+      name: Charge Adjustment
+      description: Value to add to the charge counter.
+      required: false
+      selector:
+        number:
+          min: -10000
+          max: 10000
+          step: 1
+          mode: box

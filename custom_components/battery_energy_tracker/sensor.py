@@ -1,13 +1,7 @@
 """Battery Energy Tracker sensor platform."""
 import logging
-import asyncio
-from datetime import timedelta
-from typing import Optional
-
-import voluptuous as vol
 
 from homeassistant.components.sensor import (
-    PLATFORM_SCHEMA,
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
@@ -19,21 +13,12 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
-import homeassistant.helpers.config_validation as cv
 
 from .const import (
     DOMAIN,
-    CONF_BATTERY_COUNT,
-    CONF_CHARGE_RATE,
-    CONF_ENTITY_PATTERNS,
-    CONF_SCALE_FACTOR,
-    CONF_MANUAL_ENTITIES,
-    CONF_STARTUP_DELAY,
-    DEFAULT_CHARGE_RATE,
-    DEFAULT_SCALE_FACTOR,
     ATTR_TOTAL_DISCHARGE,
     ATTR_TOTAL_CHARGE,
     ATTR_ESTIMATED_CHARGE_TIME,
@@ -43,67 +28,18 @@ from .const import (
     ATTR_CHARGE_DURATION,
     ATTR_ENERGY_SINCE_LAST_CHARGE,
 )
-from .coordinator_base import BatteryEnergyCoordinator
-from . import coordinator  
 
 _LOGGER = logging.getLogger(__name__)
 
-# Sensor platform schema
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Optional(CONF_BATTERY_COUNT, default=4): cv.positive_int,
-        vol.Optional(CONF_CHARGE_RATE, default=DEFAULT_CHARGE_RATE): cv.positive_float,
-        vol.Optional(CONF_ENTITY_PATTERNS): {
-            vol.Optional("discharge"): cv.string,
-            vol.Optional("charge"): cv.string,
-            vol.Optional("current"): cv.string,
-        },
-        vol.Optional(CONF_SCALE_FACTOR, default=DEFAULT_SCALE_FACTOR): cv.positive_float,
-        vol.Optional(CONF_MANUAL_ENTITIES): {
-            vol.Required("discharge"): [cv.entity_id],
-            vol.Required("charge"): [cv.entity_id],
-            vol.Required("current"): [cv.entity_id],
-        },
-        vol.Optional(CONF_STARTUP_DELAY, default=0): cv.positive_int,
-    }
-)
 
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
+    config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType = None,
 ) -> None:
     """Set up the battery tracker sensors."""
     
-    battery_count = config.get(CONF_BATTERY_COUNT, 4)
-    charge_rate = config.get(CONF_CHARGE_RATE, DEFAULT_CHARGE_RATE)
-    entity_patterns = config.get(CONF_ENTITY_PATTERNS)
-    scale_factor = config.get(CONF_SCALE_FACTOR, DEFAULT_SCALE_FACTOR)
-    manual_entities = config.get(CONF_MANUAL_ENTITIES)
-    startup_delay = config.get(CONF_STARTUP_DELAY, 0)
-    
-    _LOGGER.info(f"Setting up battery tracker with battery_count={battery_count}, " 
-                 f"charge_rate={charge_rate}, scale_factor={scale_factor}")
-    
-    # Add a delay if requested
-    if startup_delay > 0:
-        _LOGGER.info(f"Waiting {startup_delay} seconds for other integrations to start")
-        await asyncio.sleep(startup_delay)
-        _LOGGER.info("Startup delay completed")
-    
-    # Create a coordinator for the tracker
-    coordinator = BatteryEnergyCoordinator(
-        hass, 
-        battery_count, 
-        charge_rate, 
-        entity_patterns,
-        scale_factor,
-        manual_entities
-    )
-    
-    # Wait for first refresh
-    await coordinator.async_refresh()
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
     
     entities = []
     
@@ -123,7 +59,7 @@ async def async_setup_platform(
 class BatteryEnergySensor(CoordinatorEntity, SensorEntity):
     """Base class for battery energy sensors."""
     
-    def __init__(self, coordinator: BatteryEnergyCoordinator):
+    def __init__(self, coordinator):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_has_entity_name = True
@@ -330,8 +266,8 @@ class DiagnosticSensor(BatteryEnergySensor):
         tracker_state = diagnostics.get("tracker_state", {})
         
         return {
-            "total_discharge_kwh": round(tracker_state.get("total_discharge", 0), 2),
-            "total_charge_kwh": round(tracker_state.get("total_charge", 0), 2),
+            "total_discharge_kwh": round(tracker_state.get("total_discharge_kwh", 0), 2),
+            "total_charge_kwh": round(tracker_state.get("total_charge_kwh", 0), 2),
             "energy_since_last_charge": round(tracker_state.get("energy_since_last_charge", 0), 2),
             "is_charging": tracker_state.get("is_charging", False),
             "battery_count": self.coordinator.battery_count,

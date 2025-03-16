@@ -1,23 +1,130 @@
-"""Battery Energy Tracker integration for Home Assistant."""
+"""The Battery Energy Tracker integration."""
 import logging
-from homeassistant.helpers.discovery import async_load_platform
-from .const import DOMAIN
 
-# Import the coordinator module to ensure method attachments occur
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.const import Platform
+
+from .const import DOMAIN, CONF_BATTERY_COUNT, CONF_CHARGE_RATE, CONF_ENTITY_PATTERNS, CONF_SCALE_FACTOR, CONF_MANUAL_ENTITIES, CONF_STARTUP_DELAY
+from .coordinator_base import BatteryEnergyCoordinator
+import asyncio
+
+# Make sure we import coordinator early to attach all the methods
 from . import coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup(hass, config):
-    """Set up the Battery Energy Tracker component."""
-    if DOMAIN not in config:
-        return True
-        
-    _LOGGER.info("Setting up Battery Energy Tracker integration")
+PLATFORMS = [Platform.SENSOR]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Battery Energy Tracker from a config entry."""
+    # Extract configuration
+    battery_count = entry.data.get(CONF_BATTERY_COUNT, 4)
+    charge_rate = entry.data.get(CONF_CHARGE_RATE, 1500)
+    scale_factor = entry.data.get(CONF_SCALE_FACTOR, 0.1)
+    startup_delay = entry.data.get(CONF_STARTUP_DELAY, 0)
     
-    # Load the sensor platform
-    hass.async_create_task(
-        async_load_platform(hass, 'sensor', DOMAIN, {}, config)
+    # Create options dictionary with optional keys
+    entity_patterns = entry.data.get(CONF_ENTITY_PATTERNS)
+    manual_entities = entry.data.get(CONF_MANUAL_ENTITIES)
+    
+    # Add a delay if requested
+    if startup_delay > 0:
+        _LOGGER.info(f"Waiting {startup_delay} seconds for other integrations to start")
+        await asyncio.sleep(startup_delay)
+        _LOGGER.info("Startup delay completed")
+    
+    # Create coordinator
+    coordinator = BatteryEnergyCoordinator(
+        hass,
+        battery_count,
+        charge_rate,
+        entity_patterns,
+        scale_factor,
+        manual_entities,
+    )
+    
+    # Wait for first refresh
+    await coordinator.async_refresh()
+    
+    # Store coordinator in hass data
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+    
+    # Set up platforms
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    
+    # Register services
+    async def reset_counters_service(call):
+        """Handle reset counters service call."""
+        await coordinator.reset_counters()
+    
+    async def reset_energy_since_charge_service(call):
+        """Handle reset energy since charge service call."""
+        await coordinator.reset_energy_since_charge()
+    
+    async def set_charge_state_service(call):
+        """Handle set charge state service call."""
+        is_charging = call.data.get("is_charging", False)
+        await coordinator.set_charge_state(is_charging)
+    
+    async def adjust_counters_service(call):
+        """Handle adjust counters service call."""
+        discharge_adjustment = call.data.get("discharge_adjustment")
+        charge_adjustment = call.data.get("charge_adjustment")
+        await coordinator.adjust_counters(discharge_adjustment, charge_adjustment)
+    
+    # Register services with the hass service registry
+    from .const import (
+        SERVICE_RESET_COUNTERS,
+        SERVICE_RESET_ENERGY_SINCE_CHARGE,
+        SERVICE_SET_CHARGE_STATE,
+        SERVICE_ADJUST_COUNTERS,
+        ATTR_IS_CHARGING,
+        ATTR_DISCHARGE_ADJUSTMENT,
+        ATTR_CHARGE_ADJUSTMENT,
+    )
+    
+    import voluptuous as vol
+    import homeassistant.helpers.config_validation as cv
+    
+    hass.services.async_register(
+        DOMAIN, 
+        SERVICE_RESET_COUNTERS, 
+        reset_counters_service,
+    )
+    
+    hass.services.async_register(
+        DOMAIN, 
+        SERVICE_RESET_ENERGY_SINCE_CHARGE, 
+        reset_energy_since_charge_service,
+    )
+    
+    hass.services.async_register(
+        DOMAIN, 
+        SERVICE_SET_CHARGE_STATE, 
+        set_charge_state_service,
+        schema=vol.Schema({
+            vol.Required(ATTR_IS_CHARGING): cv.boolean,
+        }),
+    )
+    
+    hass.services.async_register(
+        DOMAIN, 
+        SERVICE_ADJUST_COUNTERS, 
+        adjust_counters_service,
+        schema=vol.Schema({
+            vol.Optional(ATTR_DISCHARGE_ADJUSTMENT): vol.Coerce(float),
+            vol.Optional(ATTR_CHARGE_ADJUSTMENT): vol.Coerce(float),
+        }),
     )
     
     return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        hass.data[DOMAIN].pop(entry.entry_id)
+    return unload_ok
