@@ -29,10 +29,14 @@ async def async_setup_entry(
     
     entities = [
         TotalDischargeEnergySensor(coordinator),
+        TotalChargeEnergySensor(coordinator),
+        EnergySinceLastChargeSensor(coordinator),
+        EstimatedChargeTimeSensor(coordinator),
+        ChargeStatusSensor(coordinator),
+        DiagnosticSensor(coordinator)
     ]
     
     async_add_entities(entities)
-
 
 class BatteryEnergySensor(CoordinatorEntity, SensorEntity):
     """Base class for battery energy sensors."""
