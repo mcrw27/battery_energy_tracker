@@ -6,6 +6,6 @@
   "codeowners": ["@mcrw27"],
   "requirements": [],
   "iot_class": "local_polling",
-  "version": "0.2.0",
+  "version": "0.2.5",
   "config_flow": true
 }
