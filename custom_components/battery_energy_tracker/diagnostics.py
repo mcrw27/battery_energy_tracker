@@ -20,6 +20,8 @@ async def diagnostic_check(self):
             "is_charging": self.is_charging,
             "last_charge_completed": self.last_charge_completed,
             "charge_start_time": self.charge_start_time,
+            "total_charge_rate": self.total_charge_rate,
+            "charge_rate_data": self.charge_rate_data,
         }
     }
     

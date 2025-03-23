@@ -47,6 +47,7 @@ async def async_setup_entry(
         EnergySinceLastChargeSensor(coordinator),
         EstimatedChargeTimeSensor(coordinator),
         ChargeStatusSensor(coordinator),
+        ChargeRateSensor(coordinator),
         DiagnosticSensor(coordinator)
     ]
     
@@ -234,6 +235,52 @@ class ChargeStatusSensor(BatteryEnergySensor):
         return attrs
 
 
+class ChargeRateSensor(BatteryEnergySensor):
+    """Sensor to track the current charge rate."""
+    
+    _attr_name = "Charge Rate"
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:flash"
+    
+    @property
+    def unique_id(self):
+        """Return unique ID for the sensor."""
+        return f"{DOMAIN}_charge_rate"
+        
+    @property
+    def native_value(self):
+        """Return the current charge rate."""
+        if not self.coordinator.data:
+            return 0
+            
+        # Only show a rate when we're actually charging
+        if not self.coordinator.data.get("is_charging", False):
+            return 0
+            
+        return round(self.coordinator.data.get("total_charge_rate", 0), 1)
+    
+    @property
+    def extra_state_attributes(self):
+        """Return additional attributes."""
+        if not self.coordinator.data or not self.coordinator.data.get("is_charging", False):
+            return {"status": "Not charging"}
+            
+        charge_rate_data = self.coordinator.data.get("charge_rate_data", {})
+        
+        return {
+            "instantaneous_total": round(charge_rate_data.get("instantaneous_total", 0), 1),
+            "weighted_average": round(charge_rate_data.get("weighted_average", 0), 1),
+            "counter_based": round(charge_rate_data.get("counter_based", 0), 1) if charge_rate_data.get("counter_based") else None,
+            "active_charging_batteries": charge_rate_data.get("active_charging_batteries", 0),
+            "per_battery": {
+                f"battery_{bnum}": round(bdata.get("instantaneous_rate", 0), 1)
+                for bnum, bdata in charge_rate_data.get("battery_rates", {}).items()
+            }
+        }
+
+
 class DiagnosticSensor(BatteryEnergySensor):
     """Sensor that provides diagnostic information about the battery tracker."""
     
@@ -286,7 +333,7 @@ class DiagnosticSensor(BatteryEnergySensor):
         diagnostics = self.coordinator.data.get("diagnostics", {})
         tracker_state = diagnostics.get("tracker_state", {})
         
-        return {
+        attrs = {
             "total_discharge_kwh": round(tracker_state.get("total_discharge_kwh", 0), 2),
             "total_charge_kwh": round(tracker_state.get("total_charge_kwh", 0), 2),
             "energy_since_last_charge": round(tracker_state.get("energy_since_last_charge", 0), 2),
@@ -295,3 +342,9 @@ class DiagnosticSensor(BatteryEnergySensor):
             "detected_entities": diagnostics.get("battery_entities", {}),
             "retry_count": diagnostics.get("retry_count", 0),
         }
+        
+        # Add charge rate data if available
+        if self.coordinator.data.get("charge_rate_data"):
+            attrs["charge_rate_data"] = self.coordinator.data.get("charge_rate_data")
+            
+        return attrs

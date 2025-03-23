@@ -75,6 +75,13 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
             'last_charge_duration': None,
         }
         
+        # For charge rate tracking
+        self.battery_charge_rates = {}  # Store charge rates for each battery
+        self.historic_charge_rates = []  # For time-weighted average
+        self.total_charge_rate = 0  # Total charge rate across all batteries
+        self.charge_rate_data = {}  # For diagnostics
+        self.last_counter_check = None  # For counter-based rate calculation
+        
         # Store detected entity mappings
         self.detected_entities = {
             'discharge': [],
@@ -119,6 +126,8 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
             "last_charge_completed": self.last_charge_completed,
             "last_charge_duration": self.last_charge_duration,
             "estimated_charge_time": self.get_estimated_charge_time(),
+            "total_charge_rate": self.total_charge_rate,
+            "charge_rate_data": self.charge_rate_data,
         }
         
         # First, ensure we have detected entities
@@ -148,6 +157,10 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
         
         # Update charging status
         await self._update_charging_status()
+        
+        # Update charge rates
+        if self.is_charging:
+            await self._update_charge_rates()
         
         # Diagnostics
         data["diagnostics"] = await self.diagnostic_check()
@@ -197,7 +210,7 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
         self.total_charge_counter = self._last_stored_totals['charge_counter']
         self.last_charge_completed = self._last_stored_totals['last_charge_completed']
         self.last_charge_duration = self._last_stored_totals['last_charge_duration']
-    
+        
     def get_estimated_charge_time(self) -> Optional[float]:
         """Estimate time needed to recharge battery based on energy discharged."""
         # Convert counter units to kWh for calculation
@@ -207,9 +220,17 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
         if energy_kwh <= 0:
             return 0
             
+        # Use calculated charge rate if available and we're charging,
+        # otherwise use configured rate
+        if self.is_charging and self.total_charge_rate > 100:
+            charge_rate_watts = self.total_charge_rate
+            _LOGGER.debug(f"Using calculated charge rate for estimate: {charge_rate_watts:.2f}W")
+        else:
+            charge_rate_watts = self.charge_rate
+            _LOGGER.debug(f"Using configured charge rate for estimate: {charge_rate_watts:.2f}W")
+        
         # Calculate time in hours
-        # This is a simplification - actual charging doesn't happen at constant rate
-        estimated_hours = energy_kwh * 1000 / self.charge_rate
+        estimated_hours = energy_kwh * 1000 / charge_rate_watts
         
         # Apply some real-world adjustment factor (batteries charge slower as they fill)
         adjustment_factor = 1.2  # 20% buffer for real-world charging
