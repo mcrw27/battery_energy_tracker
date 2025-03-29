@@ -12,6 +12,9 @@ async def auto_detect_entities(self):
         'current': []
     }
     
+    _LOGGER.info("==== ENTITY DETECTION DEBUG ====")
+    _LOGGER.info(f"Starting entity detection for {self.battery_count} batteries")
+    
     # Use manually configured entities if provided
     if self.manual_entities:
         _LOGGER.info("Using manually configured entities")
@@ -38,19 +41,20 @@ async def auto_detect_entities(self):
     # First, let's log ALL entities to see what's available
     _LOGGER.debug("BEGIN: Full entity list dump ======")
     all_entities = self.hass.states.async_all()
-    _LOGGER.debug(f"Total entities in Home Assistant: {len(all_entities)}")
+    _LOGGER.info(f"Total entities in Home Assistant: {len(all_entities)}")
     
     # Count entities starting with 'sensor.'
     sensor_entities = [e for e in all_entities if e.entity_id.startswith('sensor.')]
-    _LOGGER.debug(f"Total sensor entities: {len(sensor_entities)}")
+    _LOGGER.info(f"Total sensor entities: {len(sensor_entities)}")
     
     # Filter for Pylontech
     pylontech_entities = [e for e in sensor_entities if 'pylontech' in e.entity_id.lower()]
-    _LOGGER.debug(f"Total Pylontech sensor entities: {len(pylontech_entities)}")
+    _LOGGER.info(f"Total Pylontech sensor entities: {len(pylontech_entities)}")
     
-    # Log the first 5 pylontech entities
-    for i, entity in enumerate(pylontech_entities[:5]):
-        _LOGGER.debug(f"Pylontech entity {i+1}: {entity.entity_id} = {entity.state}")
+    # Enhanced logging - log ALL pylontech entities
+    _LOGGER.info("All detected Pylontech entities:")
+    for i, entity in enumerate(pylontech_entities):
+        _LOGGER.info(f"  {i+1}: {entity.entity_id} = {entity.state}")
     
     _LOGGER.debug("END: Full entity list dump ======")
     
@@ -59,9 +63,9 @@ async def auto_detect_entities(self):
     test_state = self.hass.states.get(test_entity_id)
     
     if test_state is None:
-        _LOGGER.error(f"TEST FAILED: Could not find entity '{test_entity_id}' in state machine")
+        _LOGGER.warning(f"TEST FAILED: Could not find entity '{test_entity_id}' in state machine")
     else:
-        _LOGGER.debug(f"TEST PASSED: Found entity '{test_entity_id}' with state '{test_state.state}'")
+        _LOGGER.info(f"TEST PASSED: Found entity '{test_entity_id}' with state '{test_state.state}'")
     
     # Now let's try using the entity registry the modern way
     _LOGGER.debug("BEGIN: Entity Registry lookup ======")
@@ -74,31 +78,32 @@ async def auto_detect_entities(self):
         
         # Get all entities from the registry
         registry_entities = list(registry.entities.keys())
-        _LOGGER.debug(f"Total entities in registry: {len(registry_entities)}")
+        _LOGGER.info(f"Total entities in registry: {len(registry_entities)}")
         
         # Count sensor entities in registry
         registry_sensors = [e for e in registry_entities if e.startswith('sensor.')]
-        _LOGGER.debug(f"Sensor entities in registry: {len(registry_sensors)}")
+        _LOGGER.info(f"Sensor entities in registry: {len(registry_sensors)}")
         
         # Filter for Pylontech in registry
         registry_pylontech = [e for e in registry_sensors if 'pylontech' in e.lower()]
-        _LOGGER.debug(f"Pylontech sensor entities in registry: {len(registry_pylontech)}")
+        _LOGGER.info(f"Pylontech sensor entities in registry: {len(registry_pylontech)}")
         
-        # Log the first 5 pylontech entities from registry
-        for i, entity_id in enumerate(registry_pylontech[:5]):
-            _LOGGER.debug(f"Registry Pylontech entity {i+1}: {entity_id}")
+        # Enhanced logging - log ALL pylontech entities from registry
+        _LOGGER.info("All Pylontech entities in registry:")
+        for i, entity_id in enumerate(registry_pylontech):
+            _LOGGER.info(f"  {i+1}: {entity_id}")
             
         # Check for our test entity in registry
         if test_entity_id in registry_entities:
-            _LOGGER.debug(f"TEST PASSED: Found entity '{test_entity_id}' in registry")
+            _LOGGER.info(f"TEST PASSED: Found entity '{test_entity_id}' in registry")
         else:
-            _LOGGER.error(f"TEST FAILED: Could not find entity '{test_entity_id}' in registry")
+            _LOGGER.warning(f"TEST FAILED: Could not find entity '{test_entity_id}' in registry")
             
         # Log all Battery-related entities
         battery_entities = [e for e in registry_entities if 'battery' in e.lower()]
-        _LOGGER.debug(f"Found {len(battery_entities)} battery-related entities in registry")
-        for entity_id in battery_entities[:10]:  # Show first 10
-            _LOGGER.debug(f"  - {entity_id}")
+        _LOGGER.info(f"Found {len(battery_entities)} battery-related entities in registry")
+        for entity_id in battery_entities[:20]:  # Show more entities
+            _LOGGER.info(f"  - {entity_id}")
             
     except Exception as e:
         _LOGGER.error(f"Error accessing entity registry: {e}")
@@ -121,19 +126,23 @@ async def auto_detect_entities(self):
     
     # User-provided entity patterns override defaults
     if self.entity_patterns:
+        _LOGGER.info(f"Using user-provided entity patterns: {self.entity_patterns}")
         for key, pattern in self.entity_patterns.items():
             if key in patterns and pattern:
                 patterns[key] = [pattern]  # Replace with user pattern
+                _LOGGER.info(f"Overriding pattern for {key}: {pattern}")
+    else:
+        _LOGGER.info(f"Using default entity patterns: {patterns}")
     
     # Try to find entities in registry for each battery
     if registry is not None:
         for battery_num in range(1, self.battery_count + 1):
-            _LOGGER.debug(f"Checking registry for entities for battery {battery_num}")
+            _LOGGER.info(f"Checking registry for entities for battery {battery_num}")
             
             for entity_type, entity_patterns in patterns.items():
                 for pattern in entity_patterns:
                     entity_id = pattern.format(battery_num)
-                    _LOGGER.debug(f"Checking registry for {entity_type}: {entity_id}")
+                    _LOGGER.info(f"Checking registry for {entity_type}: {entity_id}")
                     
                     if entity_id in registry_entities:
                         _LOGGER.info(f"Found {entity_type} entity in registry for battery {battery_num}: {entity_id}")
@@ -150,6 +159,7 @@ async def auto_detect_entities(self):
                         
                         if not found:
                             # Try any pattern that looks close
+                            _LOGGER.info(f"Trying partial matching for {entity_type} on battery {battery_num}")
                             for reg_entity in registry_entities:
                                 if all(part.lower() in reg_entity.lower() for part in ["pylontech", f"{battery_num}", "discharge"]):
                                     if (entity_type == 'discharge' and "_2" in reg_entity) or \
@@ -165,7 +175,7 @@ async def auto_detect_entities(self):
                                     break
                             
                             if not found:
-                                _LOGGER.debug(f"Not found in registry: {entity_id}")
+                                _LOGGER.warning(f"Not found in registry: {entity_id}")
     
     # If we didn't find any entities, check if this is the first run
     if not any(detected_entities.values()) and self._first_run:
@@ -177,11 +187,13 @@ async def auto_detect_entities(self):
             _LOGGER.info("Running delayed entity detection...")
             await self.async_refresh()
         
-        self.hass.helpers.event.async_call_later(60, check_later)
+        # Use imported async_call_later instead of self.hass.helpers.event.async_call_later
+        from homeassistant.helpers.event import async_call_later
+        async_call_later(self.hass, 60, check_later)
     
     # Also try original state-based lookup as fallback
     for battery_num in range(1, self.battery_count + 1):
-        _LOGGER.debug(f"Looking for entities in state machine for battery {battery_num}")
+        _LOGGER.info(f"Looking for entities in state machine for battery {battery_num}")
         
         for entity_type, entity_patterns in patterns.items():
             # Skip if we already found this entity type and battery number
@@ -196,7 +208,7 @@ async def auto_detect_entities(self):
                 
             for pattern in entity_patterns:
                 entity_id = pattern.format(battery_num)
-                _LOGGER.debug(f"Checking state machine for {entity_type}: {entity_id}")
+                _LOGGER.info(f"Checking state machine for {entity_type}: {entity_id}")
                 
                 state = self.hass.states.get(entity_id)
                 if state is not None:
@@ -204,9 +216,10 @@ async def auto_detect_entities(self):
                     detected_entities[entity_type].append((battery_num, entity_id))
                     break
                 else:
-                    _LOGGER.debug(f"Not found in state machine: {entity_id}")
+                    _LOGGER.warning(f"Not found in state machine: {entity_id}")
     
     # Log what we found
+    _LOGGER.info("==== DETECTION RESULTS ====")
     for entity_type, entities in detected_entities.items():
         if entities:
             _LOGGER.info(f"Found {entity_type} entities:")

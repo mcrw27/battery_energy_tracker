@@ -6,6 +6,8 @@ from typing import Dict, Any, List, Optional, Tuple
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
+# Import event helpers directly as per deprecation warning
+from homeassistant.helpers.event import async_call_later
 
 from .const import (
     DOMAIN,
@@ -155,8 +157,9 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
             async def retry_update(now=None):
                 _LOGGER.info("Attempting entity refresh...")
                 await self.async_refresh()
-                
-            self.hass.helpers.event.async_call_later(30, retry_update)
+            
+            # Fixed: use imported async_call_later instead of self.hass.helpers.event.async_call_later
+            async_call_later(self.hass, 30, retry_update)
         elif not available_entities:
             _LOGGER.error(f"Entities still not available after {self._max_retries} retries")
         else:
