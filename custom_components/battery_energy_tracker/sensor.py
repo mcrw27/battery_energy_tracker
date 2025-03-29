@@ -402,42 +402,42 @@ class BatteryStoredEnergySensor(BatteryEnergySensor):
         }
 
 
-    class TotalStoredEnergySensor(BatteryEnergySensor):
-        """Sensor to track total energy stored across all batteries."""
+class TotalStoredEnergySensor(BatteryEnergySensor):
+    """Sensor to track total energy stored across all batteries."""
+
+    _attr_name = "Total Stored Energy"
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:battery-charging"
+
+    @property
+    def unique_id(self):
+        """Return unique ID for the sensor."""
+        return f"{DOMAIN}_total_stored_energy"
     
-        _attr_name = "Total Stored Energy"
-        _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
-        _attr_device_class = SensorDeviceClass.ENERGY
-        _attr_state_class = SensorStateClass.MEASUREMENT
-        _attr_icon = "mdi:battery-charging"
+    @property
+    def native_value(self):
+        """Return the total stored energy value."""
+        if not self.coordinator.data:
+            return 0
+        
+        return round(self.coordinator.data.get("total_stored_energy", 0), 2)
     
-        @property
-        def unique_id(self):
-            """Return unique ID for the sensor."""
-            return f"{DOMAIN}_total_stored_energy"
+    @property
+    def extra_state_attributes(self):
+        """Return additional attributes."""
+        if not self.coordinator.data:
+            return {}
         
-        @property
-        def native_value(self):
-            """Return the total stored energy value."""
-            if not self.coordinator.data:
-                return 0
-            
-            return round(self.coordinator.data.get("total_stored_energy", 0), 2)
-        
-        @property
-        def extra_state_attributes(self):
-            """Return additional attributes."""
-            if not self.coordinator.data:
-                return {}
-            
-            # Get the percentage
-            percentage = self.coordinator.data.get("total_stored_energy_percent", 0)
-        
-            # Get the individual battery values
-            stored_energy = self.coordinator.data.get("battery_stored_energy", {})
-            per_battery = {f"battery_{bnum}": round(energy, 2) for bnum, energy in stored_energy.items()}
-        
-            return {
-                "percentage": round(percentage, 1),
-                "per_battery": per_battery,
-            }
+        # Get the percentage
+        percentage = self.coordinator.data.get("total_stored_energy_percent", 0)
+    
+        # Get the individual battery values
+        stored_energy = self.coordinator.data.get("battery_stored_energy", {})
+        per_battery = {f"battery_{bnum}": round(energy, 2) for bnum, energy in stored_energy.items()}
+    
+        return {
+            "percentage": round(percentage, 1),
+            "per_battery": per_battery,
+        }
