@@ -32,7 +32,6 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -41,6 +40,9 @@ async def async_setup_entry(
     """Set up the battery tracker sensors from config entry."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
     
+    # Initialize batteries with default values
+    await coordinator.initialize_all_batteries()
+    
     entities = [
         TotalDischargeEnergySensor(coordinator),
         TotalChargeEnergySensor(coordinator),
@@ -48,12 +50,15 @@ async def async_setup_entry(
         EstimatedChargeTimeSensor(coordinator),
         ChargeStatusSensor(coordinator),
         ChargeRateSensor(coordinator),
-        DiagnosticSensor(coordinator)
+        DiagnosticSensor(coordinator),
+        TotalStoredEnergySensor(coordinator),
     ]
     
+    # Add individual battery storage sensors
+    for battery_num in range(1, coordinator.battery_count + 1):
+        entities.append(BatteryStoredEnergySensor(coordinator, battery_num))
+    
     async_add_entities(entities)
-
-
 class BatteryEnergySensor(CoordinatorEntity, SensorEntity):
     """Base class for battery energy sensors."""
     
@@ -348,3 +353,91 @@ class DiagnosticSensor(BatteryEnergySensor):
             attrs["charge_rate_data"] = self.coordinator.data.get("charge_rate_data")
             
         return attrs
+    
+class BatteryStoredEnergySensor(BatteryEnergySensor):
+    """Sensor to track net energy stored in a specific battery."""
+    
+    def __init__(self, coordinator, battery_num):
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self.battery_num = battery_num
+        self._attr_name = f"Battery {battery_num} Stored Energy"
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_icon = "mdi:battery-charging-medium"
+        
+    @property
+    def unique_id(self):
+        """Return unique ID for the sensor."""
+        return f"{DOMAIN}_battery_{self.battery_num}_stored_energy"
+        
+    @property
+    def native_value(self):
+        """Return the stored energy value."""
+        if not self.coordinator.data:
+            return 0
+            
+        stored_energy = self.coordinator.data.get("battery_stored_energy", {})
+        return round(stored_energy.get(self.battery_num, 0), 2)
+        
+    @property
+    def extra_state_attributes(self):
+        """Return additional attributes."""
+        if not self.coordinator.data:
+            return {}
+            
+        capacities = self.coordinator.data.get("battery_capacities", {})
+        capacity = capacities.get(self.battery_num, 5.12)
+        
+        stored_energy = self.coordinator.data.get("battery_stored_energy", {})
+        energy = stored_energy.get(self.battery_num, 0)
+        
+        # Calculate percentage
+        percentage = (energy / capacity) * 100 if capacity > 0 else 0
+        
+        return {
+            "capacity_kwh": round(capacity, 2),
+            "percentage": round(percentage, 1),
+        }
+
+
+    class TotalStoredEnergySensor(BatteryEnergySensor):
+        """Sensor to track total energy stored across all batteries."""
+    
+        _attr_name = "Total Stored Energy"
+        _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        _attr_device_class = SensorDeviceClass.ENERGY
+        _attr_state_class = SensorStateClass.MEASUREMENT
+        _attr_icon = "mdi:battery-charging"
+    
+        @property
+        def unique_id(self):
+            """Return unique ID for the sensor."""
+            return f"{DOMAIN}_total_stored_energy"
+        
+        @property
+        def native_value(self):
+            """Return the total stored energy value."""
+            if not self.coordinator.data:
+                return 0
+            
+            return round(self.coordinator.data.get("total_stored_energy", 0), 2)
+        
+        @property
+        def extra_state_attributes(self):
+            """Return additional attributes."""
+            if not self.coordinator.data:
+                return {}
+            
+            # Get the percentage
+            percentage = self.coordinator.data.get("total_stored_energy_percent", 0)
+        
+            # Get the individual battery values
+            stored_energy = self.coordinator.data.get("battery_stored_energy", {})
+            per_battery = {f"battery_{bnum}": round(energy, 2) for bnum, energy in stored_energy.items()}
+        
+            return {
+                "percentage": round(percentage, 1),
+                "per_battery": per_battery,
+            }

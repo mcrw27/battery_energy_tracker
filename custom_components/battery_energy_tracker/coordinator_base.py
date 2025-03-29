@@ -93,6 +93,12 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
         self._first_run = True
         self._retry_count = 0
         self._max_retries = 10
+        
+        # For energy storage tracking
+        self.battery_stored_energy = {}  # Dict to store energy level for each battery
+        self.battery_capacities = {}     # Dict to store capacity for each battery
+        self.total_stored_energy = 0.0   # Total energy stored across all batteries
+        self.total_stored_energy_percent = 0.0  # Percentage of total capacity
 
         # Log initialization
         _LOGGER.info(
@@ -128,6 +134,10 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
             "estimated_charge_time": self.get_estimated_charge_time(),
             "total_charge_rate": self.total_charge_rate,
             "charge_rate_data": self.charge_rate_data,
+            "battery_stored_energy": self.battery_stored_energy,
+            "battery_capacities": self.battery_capacities,
+            "total_stored_energy": self.total_stored_energy,
+            "total_stored_energy_percent": self.total_stored_energy_percent,
         }
         
         # First, ensure we have detected entities
@@ -161,6 +171,9 @@ class BatteryEnergyCoordinator(DataUpdateCoordinator):
         # Update charge rates
         if self.is_charging:
             await self._update_charge_rates()
+            
+        # Update stored energy calculations
+        await self.update_stored_energy()
         
         # Diagnostics
         data["diagnostics"] = await self.diagnostic_check()

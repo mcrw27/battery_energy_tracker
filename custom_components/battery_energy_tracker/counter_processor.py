@@ -50,6 +50,7 @@ def _process_counter_value(self, entity_type, battery_num, entity_id):
             _LOGGER.debug(f"Regular delta calculation for {entity_type} on battery {battery_num}: {delta}")
             
         # Only count positive deltas - store raw counter values without scaling
+        # Only count positive deltas - store raw counter values without scaling
         if delta > 0:
             # Store raw counter values
             if entity_type == "discharge":
@@ -57,9 +58,16 @@ def _process_counter_value(self, entity_type, battery_num, entity_id):
                 self.energy_since_last_charge_counter += delta
                 _LOGGER.debug(f"Updated total discharge counter: {self.total_discharge_counter}")
                 _LOGGER.debug(f"Updated energy since last charge counter: {self.energy_since_last_charge_counter}")
+        
+                # Update stored energy for this battery
+                self.process_energy_change(battery_num, "discharge", delta)
+        
             else:  # charge
                 self.total_charge_counter += delta
                 _LOGGER.debug(f"Updated total charge counter: {self.total_charge_counter}")
+        
+                # Update stored energy for this battery
+                self.process_energy_change(battery_num, "charge", delta)
         elif delta < 0:
             # Negative delta - could be a counter reset or error
             _LOGGER.warning(f"Negative delta detected for {entity_type} on battery {battery_num}: {delta}. This could indicate a counter reset or error.")

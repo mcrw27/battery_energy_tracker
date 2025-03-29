@@ -5,7 +5,8 @@ import logging
 from .coordinator_base import BatteryEnergyCoordinator
 
 # Import methods to attach
-from . import charge_state, counter_processor, diagnostics, entity_detector, services, charge_rate_tracker
+from . import charge_state, counter_processor, diagnostics, entity_detector, services
+from . import charge_rate_tracker, energy_storage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,7 +21,15 @@ BatteryEnergyCoordinator.reset_energy_since_charge = services.reset_energy_since
 BatteryEnergyCoordinator.set_charge_state = services.set_charge_state
 BatteryEnergyCoordinator.adjust_counters = services.adjust_counters
 
-# Attach the new charge rate tracking methods
+# Attach the charge rate tracking methods
 BatteryEnergyCoordinator._update_charge_rates = charge_rate_tracker._update_charge_rates
 BatteryEnergyCoordinator._calculate_weighted_average_rate = charge_rate_tracker._calculate_weighted_average_rate
 BatteryEnergyCoordinator._calculate_counter_based_rate = charge_rate_tracker._calculate_counter_based_rate
+
+# Attach the energy storage tracking methods
+BatteryEnergyCoordinator.update_stored_energy = energy_storage.update_stored_energy
+BatteryEnergyCoordinator.process_energy_change = energy_storage.process_energy_change
+BatteryEnergyCoordinator.set_battery_stored_energy = energy_storage.set_battery_stored_energy
+BatteryEnergyCoordinator.set_battery_to_full = energy_storage.set_battery_to_full
+BatteryEnergyCoordinator.set_battery_capacity = energy_storage.set_battery_capacity
+BatteryEnergyCoordinator.initialize_all_batteries = energy_storage.initialize_all_batteries
