@@ -364,7 +364,8 @@ class BatteryStoredEnergySensor(BatteryEnergySensor):
         self._attr_name = f"Battery {battery_num} Stored Energy"
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_device_class = SensorDeviceClass.ENERGY
-        self._attr_state_class = SensorStateClass.MEASUREMENT
+        # Changed from MEASUREMENT to TOTAL to comply with HA requirements
+        self._attr_state_class = SensorStateClass.TOTAL
         self._attr_icon = "mdi:battery-charging-medium"
         
     @property
@@ -408,7 +409,8 @@ class TotalStoredEnergySensor(BatteryEnergySensor):
     _attr_name = "Total Stored Energy"
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
-    _attr_state_class = SensorStateClass.MEASUREMENT
+    # Changed from MEASUREMENT to TOTAL to comply with HA requirements
+    _attr_state_class = SensorStateClass.TOTAL
     _attr_icon = "mdi:battery-charging"
 
     @property
